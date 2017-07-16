@@ -142,7 +142,8 @@ namespace RectangleCompression
             }
 
             if (RemainingHeight != 0)
-                return CalculatePages(Page, new InOutRect
+            {
+                return Pages.Take(Pages.Count - 1).Concat(CalculatePages(Pages.Last(), new InOutRect
                 {
                     Id = rectangle.Id,
                     Rectangle = new Rectangle
@@ -150,7 +151,8 @@ namespace RectangleCompression
                         Width = rectangle.Rectangle.Width,
                         Height = RemainingHeight
                     }
-                }, Placement.Adjacent, setting);
+                }, Placement.Adjacent, setting)).ToList();
+            }
 
             return Pages;
         }
@@ -801,9 +803,10 @@ namespace RectangleCompression
             Result.Add(Compress(Pages[0], Setting));
             var PageIndex = Pages[0].Columns.Last().Last().Id;
 
-            while (Pages.Count == 2 || PageIndex != LastId)
+            while (Pages.Count > 1 || PageIndex != LastId)
             {
-                var NewRectangles = Pages.Count == 2 ? Pages[1].Columns[0] : new List<InOutRect>();
+                var NewRectangles = Pages.Count > 1 ? Pages.Skip(1).Select(x => x.Columns)
+                    .SelectMany(x => x).SelectMany(x => x).ToList() : new List<InOutRect>();
                 NewRectangles.AddRange(RectangeList.SubList(PageIndex));
                 Pages = MaxRectanglesOnPage(NewRectangles, Setting);
                 Result.Add(Compress(Pages[0], Setting));
