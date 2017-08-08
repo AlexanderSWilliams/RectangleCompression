@@ -53,11 +53,16 @@ namespace RectangleCompression
                     if (!ValidCuts.Any())
                         return null;
                     var MaxCut = ValidCuts.Max();
-                    Page.Columns.Last().Add(new InOutRect
+
+                    var UnderRectangle = new InOutRect
                     {
                         Id = rectangle.Id,
                         Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
-                    });
+                    };
+                    if (!Page.Columns.Any())
+                        Page.Columns.Add(new List<InOutRect> { UnderRectangle });
+                    else
+                        Page.Columns.Last().Add(UnderRectangle);
 
                     var NextHeight = Math.Min(rectangle.Rectangle.Height - MaxCut, setting.Height);
                     RemainingHeight = rectangle.Rectangle.Height - MaxCut - NextHeight;
