@@ -64,7 +64,11 @@ namespace RectangleCompression
                     else
                         Page.Columns.Last().Add(UnderRectangle);
 
-                    var NextHeight = Math.Min(rectangle.Rectangle.Height - MaxCut, setting.Height);
+                    var NextPageCuts = Cuts.Where(x => x - MaxCut <= setting.Height);
+                    if (rectangle.Rectangle.Height - MaxCut > setting.Height && !NextPageCuts.Any())
+                        return null;
+
+                    var NextHeight = rectangle.Rectangle.Height - MaxCut > setting.Height ? NextPageCuts.Max() : rectangle.Rectangle.Height - MaxCut;
                     RemainingHeight = rectangle.Rectangle.Height - MaxCut - NextHeight;
 
                     var X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
@@ -118,7 +122,11 @@ namespace RectangleCompression
                         Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
                     }});
 
-                    var NextHeight = Math.Min(rectangle.Rectangle.Height - MaxCut, setting.Height);
+                    var NextPageCuts = Cuts.Where(x => x - MaxCut <= setting.Height);
+                    if (rectangle.Rectangle.Height - MaxCut > setting.Height && !NextPageCuts.Any())
+                        return null;
+
+                    var NextHeight = rectangle.Rectangle.Height - MaxCut > setting.Height ? NextPageCuts.Max() : rectangle.Rectangle.Height - MaxCut;
                     RemainingHeight = rectangle.Rectangle.Height - MaxCut - NextHeight;
 
                     X = X + rectangle.Rectangle.Width + setting.Spacing;
