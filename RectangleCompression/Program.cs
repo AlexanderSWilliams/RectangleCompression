@@ -20,17 +20,36 @@ namespace RectangleCompression
             Adjacent
         }
 
+        /// <summary>
+        /// Precondition: The DemoCutDict must be populated before calling this query.
+        /// Postcondition: CutDict caches the result of determining the valid cuts of a rectangle given its id.
+        /// BoxCutFromId returns the list of valid cuts of a rectangle given its id.
+        /// </summary>
+        /// <param name="id">The id of the rectangle to retreive the valid cut values from.</param>
+        /// <returns></returns>
         public static RectangleCut BoxCutFromId(int id)
         {
             RectangleCut Cut;
             if (CutDict.TryGetValue(id, out Cut))
                 return Cut;
 
-            var Result = new RectangleCut { Cuts = DemoCutDict[id].Cuts.Where(x => x != 0).ToList() };
+            var Result = new RectangleCut { Cuts = DemoCutDict[id].Cuts.Where(x => x > 0).ToList() };
             CutDict.Add(id, Result);
             return Result;
         }
 
+        /// <summary>
+        /// CalculatePages returns null if the placement is under and the rectangle does not fit vertically,
+        /// if the placement is adjacent and the rectangle does not fit horizontally, or no portion of the rectangle
+        /// will fit on the page after splitting.  Otherwise, it returns a list of pages from the result of placing the
+        /// rectangle on the page as specified. Multiple pages can be returned if it is necessary to split the
+        /// rectangle into potentially multiple rectangles.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="rectangle">The rectangle being added to the page.</param>
+        /// <param name="placement">The specified placement of the rectangle.  This is either under or adjancent.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <returns></returns>
         public static List<Page> CalculatePages(Page page, InOutRect rectangle, Placement placement, PageSetting setting)
         {
             var Pages = new List<Page> { ClonePage(page) };
@@ -170,11 +189,27 @@ namespace RectangleCompression
             return Pages;
         }
 
+        /// <summary>
+        /// ClonePage returns a deep copy of a page.  However, references to the original rectangles remain intact.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <returns></returns>
         public static Page ClonePage(Page page)
         {
             return new Page { Columns = page.Columns.Select(y => y.ToList()).ToList() };
         }
 
+        /// <summary>
+        /// Compress calculates the desired average height for each column given the number of desired columns.  If the first column
+        /// is less than the desired height, then rectangles are moved or split from the second column into the first column to
+        /// achieve the closest possible desired height.  If the first column is more than the desired height, then rectangles are
+        /// moved or split from the first column into the second column to achieve the closest possible desired height.  This process
+        /// then repeats on each subsequent column.  The resulting page is returned.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="numberOfColumns">The number of columns the compression is aiming to achieve.</param>
+        /// <returns></returns>
         public static Page Compress(Page page, PageSetting setting, int numberOfColumns)
         {
             var Result = ClonePage(page);
@@ -216,6 +251,15 @@ namespace RectangleCompression
             return Result;
         }
 
+        /// <summary>
+        /// Compress aims to compress the given page with various possible number of columns until the
+        /// compression is no longer returning at least the specified number of columns.  Each specified
+        /// number of columns gives a possible page.  The pages are compared with each other to return the page
+        /// that has the minimum overall height and the smallest deviation from the average height.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <returns></returns>
         public static Page Compress(Page page, PageSetting setting)
         {
             return Enumerable.Range(1, int.MaxValue).Select(x => new
@@ -234,6 +278,12 @@ namespace RectangleCompression
             .MinBy(x => x.Heights.Max(y => Math.Abs(x.AverageHeight - y))).First().Page;
         }
 
+        /// <summary>
+        /// CutoffsFromFile returns a dictionary with the rectangle id as the key and possible cutoff values
+        /// as the value.
+        /// </summary>
+        /// <param name="inputFilePath">The path to the input file containing the rectangle information.</param>
+        /// <returns></returns>
         public static Dictionary<int, RectangleCut> CutoffsFromFile(string inputFilePath)
         {
             var Input = System.IO.File.ReadAllText(inputFilePath);
@@ -250,6 +300,15 @@ namespace RectangleCompression
                 }).ToDictionary(x => x.Id, x => x.RectangleCut);
         }
 
+        /// <summary>
+        /// FullyMoveBottomRectangle returns a page with the bottom rectangle of the specified column moved
+        /// to the top of the right adjancent column.  Null is returned if the resulting page exceeds
+        /// the specified width and height.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="currentIndex">The index of the column containing the bottom rectangle that will be moved.</param>
+        /// <returns></returns>
         public static Page FullyMoveBottomRectangle(Page page, PageSetting setting, int currentIndex)
         {
             var Result = ClonePage(page);
@@ -306,6 +365,15 @@ namespace RectangleCompression
             return IsValidPage(Result, setting) ? Result : null;
         }
 
+        /// <summary>
+        /// FullyMoveTopRectangle returns a page with the top rectangle of the specified column moved
+        /// to the bottom of the left adjancent column.  Null is returned if the resulting page exceeds
+        /// the specified width and height.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="currentIndex">The index of the column containing the top rectangle that will be moved.</param>
+        /// <returns></returns>
         public static Page FullyMoveTopRectangle(Page page, PageSetting setting, int currentIndex)
         {
             var Result = ClonePage(page);
@@ -356,11 +424,24 @@ namespace RectangleCompression
             return IsValidPage(Result, setting) ? Result : null;
         }
 
+        /// <summary>
+        /// IsHorizontallyValid determines if all the rectangles being processed fits within the specified
+        /// width.
+        /// </summary>
+        /// <param name="rectangles">The list of rectangles that are being processed into pages.</param>
+        /// <param name="width">The width of the page.</param>
+        /// <returns></returns>
         public static bool IsHorizontallyValid(List<InOutRect> rectangles, int width)
         {
             return rectangles.All(x => x.Rectangle.Width <= width);
         }
 
+        /// <summary>
+        /// IsValidPage determines if a page fits within the specified width and height.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <returns></returns>
         public static bool IsValidPage(Page page, PageSetting setting)
         {
             if (page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) > setting.Width)
@@ -370,6 +451,13 @@ namespace RectangleCompression
             return true;
         }
 
+        /// <summary>
+        /// IsVerticallyValid determines if a rectangle can be split into rectangles that fit within
+        /// the specified height.
+        /// </summary>
+        /// <param name="rectangle">The rectangle being validated.</param>
+        /// <param name="height">The height of the page.</param>
+        /// <returns></returns>
         public static bool IsVerticallyValid(InOutRect rectangle, int height)
         {
             var Cuts = BoxCutFromId(rectangle.Id).Cuts;
@@ -380,6 +468,14 @@ namespace RectangleCompression
                 Enumerable.Range(0, Cuts.Count - 1).All(x => Cuts[x + 1] - Cuts[x] <= height);
         }
 
+        /// <summary>
+        /// MaxRectanglesOnPage returns a list of pages that fits as much of the specified rectangles
+        /// on the first page as possible.  The id of the rectangle of the last rectangle on the first
+        /// page will match the id of the rectangles on the rest of the returned pages.
+        /// </summary>
+        /// <param name="rectangles">A subset of the rectangles being processed into pages.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <returns></returns>
         public static List<Page> MaxRectanglesOnPage(List<InOutRect> rectangles, PageSetting setting)
         {
             var ValidPlacements = TreeOfValidPlacements(rectangles, setting);
@@ -391,6 +487,12 @@ namespace RectangleCompression
                 .MaxBy(x => x[0].Columns.Count).First();
         }
 
+        /// <summary>
+        /// PagesToOutputFile serializes a list of pages into a set of areas with each line number containing
+        /// the rectangle id, x-coordinate, y-coordinate, width, and height of the rectangle.
+        /// </summary>
+        /// <param name="pages">The list of calculated pages to output to a file.</param>
+        /// <param name="pathToOutputFile">The path to the output file.</param>
         public static void PagesToOutputFile(List<Page> pages, string pathToOutputFile)
         {
             var sb = new StringBuilder();
@@ -409,11 +511,24 @@ namespace RectangleCompression
             File.WriteAllText(pathToOutputFile, sb.ToString());
         }
 
+        /// <summary>
+        /// PlacementFrontier returns a list of the set of pages with maximally placed rectangles within the tree of
+        /// possible placement combinations.
+        /// </summary>
+        /// <param name="parentNode">A tree of placements along with their resulting pages.</param>
+        /// <returns></returns>
         public static List<List<Page>> PlacementFrontier(PlacementTree parentNode)
         {
             return PlacementFrontier(parentNode, new List<List<Page>>());
         }
 
+        /// <summary>
+        /// PlacementFrontier returns a list of the set of pages with maximally placed rectangles within the tree of
+        /// possible placement combinations.
+        /// </summary>
+        /// <param name="parentNode">A tree of placements along with their resulting pages.</param>
+        /// <param name="result">The intermediate data structure holding the result.</param>
+        /// <returns></returns>
         public static List<List<Page>> PlacementFrontier(PlacementTree parentNode, List<List<Page>> result)
         {
             if (parentNode.Under == null && parentNode.Adjacent == null && parentNode.Pages != null)
@@ -428,6 +543,13 @@ namespace RectangleCompression
             return result;
         }
 
+        /// <summary>
+        /// PreviousSplitHeight returns the total height of a split rectangle prior to a specified column.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="rectangleID">The id of the rectangle being considered.</param>
+        /// <param name="columnIndex">The index of the column being considered.</param>
+        /// <returns></returns>
         public static int PreviousSplitHeight(Page page, int rectangleID, int? columnIndex = null)
         {
             var Columns = columnIndex != null ? page.Columns.Take(columnIndex.Value) : page.Columns;
@@ -437,6 +559,11 @@ namespace RectangleCompression
             return PreviousRectangles.Any() ? PreviousRectangles.Sum(x => x.Rectangle.Height) : 0;
         }
 
+        /// <summary>
+        /// RectanglesFromFile returns the list of rectangles to process from a file.
+        /// </summary>
+        /// <param name="inputFilePath">The path to the input file containing the rectangle information.</param>
+        /// <returns></returns>
         public static List<InOutRect> RectanglesFromFile(string inputFilePath)
         {
             var Input = System.IO.File.ReadAllText(inputFilePath);
@@ -452,6 +579,15 @@ namespace RectangleCompression
                 .ToList();
         }
 
+        /// <summary>
+        /// SplitBottomRectangle returns a page with the bottom rectangle of the specified column split
+        /// to the top of the right adjancent column.  Null is returned if there are no valid cuts that
+        /// can bring the specified column closer to the desired height.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="currentIndex">The index of the column containing the top rectangle that will be moved.</param>
+        /// <returns></returns>
         public static Page SplitBottomRectangle(Page page, PageSetting setting, int currentIndex, double desiredHeight)
         {
             var Result = ClonePage(page);
@@ -464,9 +600,6 @@ namespace RectangleCompression
             var TopRectangle = NextColumn.Any() ? NextColumn[0] : null;
 
             var Cuts = BoxCutFromId(BottomRectangle.Id).Cuts;
-            if (!Cuts.Any())
-                return null;
-
             var CurrentHeight = BottomRectangle.Rectangle.Height + BottomRectangle.Rectangle.Y;
             var CurrentDiff = Math.Abs(desiredHeight - CurrentHeight);
             var SplitHeight = PreviousSplitHeight(Result, BottomRectangle.Id, currentIndex);
@@ -558,6 +691,15 @@ namespace RectangleCompression
             return IsValidPage(Result, setting) ? Result : null;
         }
 
+        /// <summary>
+        /// SplitBottomRectangle returns a page with the top rectangle of the specified column split
+        /// to the bottom of the left adjancent column.  Null is returned if there are no valid cuts that
+        /// can bring the specified column closer to the desired height.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="currentIndex">The index of the column containing the top rectangle that will be moved.</param>
+        /// <returns></returns>
         public static Page SplitTopRectangle(Page page, PageSetting setting, int currentIndex, double desiredHeight)
         {
             var Result = ClonePage(page);
@@ -568,8 +710,6 @@ namespace RectangleCompression
             var TopRectangle = NextColumn[0];
 
             var Cuts = BoxCutFromId(TopRectangle.Id).Cuts;
-            if (!Cuts.Any())
-                return null;
             var SplitHeight = PreviousSplitHeight(Result, TopRectangle.Id, currentIndex);
 
             var CurrentHeight = BottomRectangle.Rectangle.Height + BottomRectangle.Rectangle.Y;
@@ -661,6 +801,15 @@ namespace RectangleCompression
             return IsValidPage(Result, setting) ? Result : null;
         }
 
+        /// <summary>
+        /// TreeOfValidPlacements returns a binary tree of placements with each child being
+        /// either an under or an adjancent placement.  The tree contains all valid placement combinations
+        /// where the placements lead to a list of valid pages where the id of the last rectangle on the
+        /// first page matches the id of the rectangles on all of the following pages.
+        /// </summary>
+        /// <param name="rectangles">The set of rectangles to fit onto the page.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <returns></returns>
         public static PlacementTree TreeOfValidPlacements(List<InOutRect> rectangles, PageSetting setting)
         {
             var InitialRectangle = rectangles[0];
@@ -669,6 +818,19 @@ namespace RectangleCompression
             return TreeOfValidPlacements(new PlacementTree(), rectangles, setting, Placement.Under, rectangles[0], 1);
         }
 
+        /// <summary>
+        /// TreeOfValidPlacements returns a binary tree of placements with each child being
+        /// either an under or an adjancent placement.  The tree contains all valid placement combinations
+        /// where the placements lead to a list of valid pages where the id of the last rectangle on the
+        /// first page matches the id of the rectangles on all of the following pages.
+        /// </summary>
+        /// <param name="parentNode">The current node in the tree being processed.</param>
+        /// <param name="rectangles">The set of rectangles to fit onto the page.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="placement">The type of placement being used for the specified rectangle.</param>
+        /// <param name="rect">The rectangle to be placed</param>
+        /// <param name="index">The current depth of the placement tree.</param>
+        /// <returns></returns>
         public static PlacementTree TreeOfValidPlacements(PlacementTree parentNode, List<InOutRect> rectangles, PageSetting setting,
             Placement placement, InOutRect rect, int index)
         {
@@ -695,6 +857,12 @@ namespace RectangleCompression
             return currentNode;
         }
 
+        /// <summary>
+        /// UpdateXCoordinates takes a page with columns potentially overlapping horizontally and
+        /// returns a new page with the columns properly spaced apart.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
         public static void UpdateXCoordinates(Page page, PageSetting setting)
         {
             var ColumnWidths = page.Columns.Select(x => x.Any() ? x.Max(y => y.Rectangle.Width) : 0).ToArray();
@@ -722,6 +890,14 @@ namespace RectangleCompression
             }
         }
 
+        /// <summary>
+        /// UpdateYCoordinates takes a page with a column that has potentially overlapping rectangles and
+        /// returns a page with the rectangles seperated with the proper padding.  The method is called recursively
+        /// in the case that a column has collapsed or a column needs to be split.
+        /// </summary>
+        /// <param name="page">The page is a list of columns that each have vertically stacked rectangles.</param>
+        /// <param name="setting">The width, height, spacing, and padding of the page.</param>
+        /// <param name="columnIndex">The index of the column to update.</param>
         public static void UpdateYCoordinates(Page page, PageSetting setting, int columnIndex)
         {
             var CollapsedColumnIndex = page.Columns.IndexOf(x => !x.Any());
@@ -874,6 +1050,7 @@ namespace RectangleCompression
                 NewRectangles.AddRange(RectangeList.SubList(PageIndex));
                 Pages = MaxRectanglesOnPage(NewRectangles, Setting);
                 Result.Add(Compress(Pages[0], Setting));
+
                 PageIndex = Pages[0].Columns.Last().Last().Id;
             }
 
