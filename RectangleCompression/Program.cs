@@ -175,7 +175,7 @@ namespace RectangleCompression
 
             if (RemainingHeight != 0)
             {
-                return Pages.Take(Pages.Count - 1).Concat(CalculatePages(Pages.Last(), new InOutRect
+                var NextPages = CalculatePages(Pages.Last(), new InOutRect
                 {
                     Id = rectangle.Id,
                     Rectangle = new Rectangle
@@ -183,7 +183,12 @@ namespace RectangleCompression
                         Width = rectangle.Rectangle.Width,
                         Height = RemainingHeight
                     }
-                }, Placement.Adjacent, setting)).ToList();
+                }, Placement.Adjacent, setting);
+
+                if (NextPages != null && NextPages.All(x => x != null))
+                    return Pages.Take(Pages.Count - 1).Concat(NextPages).ToList();
+
+                return null;
             }
 
             return Pages;
