@@ -511,12 +511,16 @@ namespace RectangleCompression
         public static List<Page> MaxRectanglesOnPage(List<InOutRect> rectangles, PageSetting setting)
         {
             var ValidPlacements = TreeOfValidPlacements(rectangles, setting);
+
+            if (ValidPlacements == null)
+                return null;
+
             var Frontier = PlacementFrontier(ValidPlacements);
 
             return Frontier.MaxBy(x => x[0].Columns.Last().Last().Id).ToList()
                 .MinBy(x => x.Count != 1 ? x[1].Columns[0][0].Rectangle.Height : 0).ToList()
                 .MinBy(x => x[0].Columns.Max(y => y.Last().Rectangle.Y + y.Last().Rectangle.Height))
-                .MaxBy(x => x[0].Columns.Count).First();
+                .MaxBy(x => x[0].Columns.Count).FirstOrDefault();
         }
 
         /// <summary>
@@ -741,6 +745,8 @@ namespace RectangleCompression
             var TopRectangle = NextColumn[0];
 
             var Cuts = BoxCutFromId(TopRectangle.Id).Cuts;
+            if (!Cuts.Any())
+                return null;
             var SplitHeight = PreviousSplitHeight(Result, TopRectangle.Id, currentIndex);
 
             var CurrentHeight = BottomRectangle.Rectangle.Height + BottomRectangle.Rectangle.Y;
@@ -759,6 +765,7 @@ namespace RectangleCompression
 
                 if (BestSplitCut == null || BestSplitCut.Key > CurrentDiff)
                     return null;
+
                 var BestSplitCutHeight = BestSplitCut.First() - SplitHeight;
 
                 CurrentColumn[CurrentColumn.Count - 1] = new InOutRect
@@ -793,14 +800,15 @@ namespace RectangleCompression
             var BestCut = Cuts.Select(x => new
             {
                 Cut = x,
-                Height1 = x - SplitHeight,
-                Height2 = TopRectangle.Rectangle.Height - (x - SplitHeight)
+                Height1 = TopRectangle.Rectangle.Height - (x - SplitHeight),
+                Height2 = x - SplitHeight
             }).Where(x => x.Height1 > 0 && x.Height2 > 0 && x.Height1 <= setting.Height && x.Height2 <= setting.Height)
             .Select(x => x.Cut)
             .MinBy(x => Math.Abs(desiredHeight - (BottomRectangle.Rectangle.Y + x - SplitHeight + setting.Padding)));
 
             if (BestCut == null || BestCut.Key > CurrentDiff)
                 return null;
+
             var BestCutHeight = BestCut.First() - SplitHeight;
 
             CurrentColumn.Add(new InOutRect
@@ -809,7 +817,7 @@ namespace RectangleCompression
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
-                    Height = BestCutHeight,
+                    Height = TopRectangle.Rectangle.Height - BestCutHeight,
                     X = BottomRectangle.Rectangle.X,
                     Y = BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + setting.Padding
                 }
@@ -821,7 +829,7 @@ namespace RectangleCompression
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
-                    Height = TopRectangle.Rectangle.Height - BestCutHeight,
+                    Height = BestCutHeight,
                     X = TopRectangle.Rectangle.X,
                     Y = TopRectangle.Rectangle.Y
                 }
