@@ -61,181 +61,166 @@ namespace RectangleCompression
             {
                 var LastRectangle = LastColumn?.Last().Rectangle;
                 var Y = (LastRectangle?.Height + LastRectangle?.Y + setting.Padding ?? 0);
-                if ((Last        {
-                    var Pages = new List<Page> { ClonePage(page) };
-                    var Page = Pages[0];
-                    var LastColumn = Page.Columns.Any() ? Page.Columns.Last() : null;
-                    var RemainingHeight = 0;
+                if ((LastColumn?[0].Rectangle.X ?? 0) + rectangle.Rectangle.Width > setting.Width)
+                    return null;
 
-                    if (placement == Placement.Under)
+                if (Y + rectangle.Rectangle.Height > setting.Height)
+                {
+                    var Cuts = BoxCutFromId(rectangle.Id).Cuts;
+                    var SplitHeight = PreviousSplitHeight(Page, rectangle.Id, Page.Columns?.Count ?? 0) + setting.PreviousSplitHeight;
+                    var ValidCuts = Cuts.Where(x => Y + x - SplitHeight <= setting.Height && x >= SplitHeight + setting.MinRectangleHeight);
+                    if (!ValidCuts.Any())
+                        return null;
+                    var MaxCut = ValidCuts.Max();
+
+                    var UnderRectangle = new InOutRect
                     {
-                        if (rectangle.Rectangle.Height > 1400)
-                            Console.Write("sopt");
-                        var LastRectangle = LastColumn?.Last().Rectangle;
-                        var Y = (LastRectangle?.Height + LastRectangle?.Y + setting.Padding ?? 0);
-                        if ((LastColumn?[0].Rectangle.X ?? 0) + rectangle.Rectangle.Width > setting.Width)
-                            return null;
+                        Id = rectangle.Id,
+                        Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
+                    };
+                    if (!Page.Columns.Any())
+                        Page.Columns.Add(new List<InOutRect> { UnderRectangle });
+                    else
+                        Page.Columns.Last().Add(UnderRectangle);
 
-                        if (Y + rectangle.Rectangle.Height > setting.Height)
+                    var X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
+                    var HasRemainingHeight = (rectangle.Rectangle.Height + SplitHeight - MaxCut > setting.Height) && (X + rectangle.Rectangle.Width <= setting.Width);
+                    var NextPageCuts = Cuts.Select(x => new
+                    {
+                        Cut = x,
+                        NextHeight = HasRemainingHeight ? x - MaxCut : rectangle.Rectangle.Height + SplitHeight - MaxCut,
+                        RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height + SplitHeight - x : 0
+                    }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height && x.RemainingHeight <= setting.Height)
+                    .Select(x => x.Cut);
+
+                    if (HasRemainingHeight && !NextPageCuts.Any())
+                        return null;
+
+                    var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
+                    var NextHeight = NextMaxCut - MaxCut;
+                    RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - NextHeight : 0;
+
+                    if (X + rectangle.Rectangle.Width > setting.Width)
+                    {
+                        Pages.Add(new Page
                         {
-                            var Cuts = BoxCutFromId(rectangle.Id).Cuts;
-                            var SplitHeight = PreviousSplitHeight(Page, rectangle.Id, Page.Columns?.Count ?? 0) + setting.PreviousSplitHeight;
-                            var ValidCuts = Cuts.Where(x => Y + x - SplitHeight <= setting.Height && x >= SplitHeight + setting.MinRectangleHeight);
-                            if (!ValidCuts.Any())
-                                return null;
-                            var MaxCut = ValidCuts.Max();
-
-                            var UnderRectangle = new InOutRect
-                            {
-                                Id = rectangle.Id,
-                                Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
-                            };
-                            if (!Page.Columns.Any())
-                                Page.Columns.Add(new List<InOutRect> { UnderRectangle });
-                            else
-                                Page.Columns.Last().Add(UnderRectangle);
-
-                            var X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
-                            var HasRemainingHeight = (rectangle.Rectangle.Height + SplitHeight - MaxCut > setting.Height) && (X + rectangle.Rectangle.Width <= setting.Width);
-                            var NextPageCuts = Cuts.Select(x => new
-                            {
-                                Cut = x,
-                                NextHeight = HasRemainingHeight ? x - MaxCut : rectangle.Rectangle.Height + SplitHeight - MaxCut,
-                                RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height + SplitHeight - x : 0
-                            }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height && x.RemainingHeight <= setting.Height)
-                            .Select(x => x.Cut);
-
-                            if (HasRemainingHeight && !NextPageCuts.Any())
-                                return null;
-
-                            var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
-                            var NextHeight = NextMaxCut - MaxCut;
-                            RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - NextHeight : 0;
-
-                            if (X + rectangle.Rectangle.Width > setting.Width)
-                            {
-                                Pages.Add(new Page
-                                {
-                                    Columns = new List<List<InOutRect>> { new List<InOutRect> {new InOutRect {
+                            Columns = new List<List<InOutRect>> { new List<InOutRect> {new InOutRect {
                                     Id = rectangle.Id,
                                     Rectangle = new Rectangle { X = 0, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                                 }}}
-                                });
-                            }
-                            else
-                                Page.Columns.Add(new List<InOutRect> { new InOutRect {
+                        });
+                    }
+                    else
+                        Page.Columns.Add(new List<InOutRect> { new InOutRect {
                             Id = rectangle.Id,
                             Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                         }});
-                        }
-                        else
-                        {
-                            var UnderRectangle = new InOutRect
-                            {
-                                Id = rectangle.Id,
-                                Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = rectangle.Rectangle.Height }
-                            };
-                            if (!Page.Columns.Any())
-                                Page.Columns.Add(new List<InOutRect> { UnderRectangle });
-                            else
-                                Page.Columns.Last().Add(UnderRectangle);
-                        }
-                    }
-                    else
+                }
+                else
+                {
+                    var UnderRectangle = new InOutRect
                     {
-                        var X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
-                        if (X + rectangle.Rectangle.Width > setting.Width)
-                            return null;
+                        Id = rectangle.Id,
+                        Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = rectangle.Rectangle.Height }
+                    };
+                    if (!Page.Columns.Any())
+                        Page.Columns.Add(new List<InOutRect> { UnderRectangle });
+                    else
+                        Page.Columns.Last().Add(UnderRectangle);
+                }
+            }
+            else
+            {
+                var X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
+                if (X + rectangle.Rectangle.Width > setting.Width)
+                    return null;
 
-                        if (rectangle.Rectangle.Height > setting.Height)
-                        {
-                            var Cuts = BoxCutFromId(rectangle.Id).Cuts;
-                            var SplitHeight = PreviousSplitHeight(Page, rectangle.Id, Page.Columns?.Count ?? 0) + setting.PreviousSplitHeight;
-                            var ValidCuts = Cuts.Where(x => x - SplitHeight <= setting.Height && x >= SplitHeight + setting.MinRectangleHeight);
-                            if (!ValidCuts.Any())
-                                return null;
-                            var MaxCut = ValidCuts.Max();
+                if (rectangle.Rectangle.Height > setting.Height)
+                {
+                    var Cuts = BoxCutFromId(rectangle.Id).Cuts;
+                    var SplitHeight = PreviousSplitHeight(Page, rectangle.Id, Page.Columns?.Count ?? 0) + setting.PreviousSplitHeight;
+                    var ValidCuts = Cuts.Where(x => x - SplitHeight <= setting.Height && x >= SplitHeight + setting.MinRectangleHeight);
+                    if (!ValidCuts.Any())
+                        return null;
+                    var MaxCut = ValidCuts.Max();
 
-                            Page.Columns.Add(new List<InOutRect>{new InOutRect
+                    Page.Columns.Add(new List<InOutRect>{new InOutRect
                     {
                         Id = rectangle.Id,
                         Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
                     }});
 
-                            X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
-                            var HasRemainingHeight = (rectangle.Rectangle.Height + SplitHeight - MaxCut > setting.Height) && (X + rectangle.Rectangle.Width <= setting.Width);
-                            var NextPageCuts = Cuts.Select(x => new
-                            {
-                                Cut = x,
-                                NextHeight = HasRemainingHeight ? x - MaxCut : rectangle.Rectangle.Height + SplitHeight - MaxCut,
-                                RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height + SplitHeight - x : 0
-                            }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height && x.RemainingHeight <= setting.Height)
-                            .Select(x => x.Cut);
+                    X = Page.Columns.Last().Max(x => x.Rectangle.X + x.Rectangle.Width) + setting.Spacing;
+                    var HasRemainingHeight = (rectangle.Rectangle.Height + SplitHeight - MaxCut > setting.Height) && (X + rectangle.Rectangle.Width <= setting.Width);
+                    var NextPageCuts = Cuts.Select(x => new
+                    {
+                        Cut = x,
+                        NextHeight = HasRemainingHeight ? x - MaxCut : rectangle.Rectangle.Height + SplitHeight - MaxCut,
+                        RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height + SplitHeight - x : 0
+                    }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height && x.RemainingHeight <= setting.Height)
+                    .Select(x => x.Cut);
 
-                            if (HasRemainingHeight && !NextPageCuts.Any())
-                                return null;
+                    if (HasRemainingHeight && !NextPageCuts.Any())
+                        return null;
 
-                            var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
-                            var NextHeight = NextMaxCut - MaxCut;
-                            RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - NextHeight : 0;
+                    var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
+                    var NextHeight = NextMaxCut - MaxCut;
+                    RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - NextHeight : 0;
 
-                            if (X + rectangle.Rectangle.Width > setting.Width)
-                                Pages.Add(new Page
-                                {
-                                    Columns = new List<List<InOutRect>> { new List<InOutRect> {new InOutRect {
+                    if (X + rectangle.Rectangle.Width > setting.Width)
+                        Pages.Add(new Page
+                        {
+                            Columns = new List<List<InOutRect>> { new List<InOutRect> {new InOutRect {
                                 Id = rectangle.Id,
                                 Rectangle = new Rectangle { X = 0, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                             }}}
-                                });
-                            else
-                                Page.Columns.Add(new List<InOutRect> { new InOutRect {
+                        });
+                    else
+                        Page.Columns.Add(new List<InOutRect> { new InOutRect {
                             Id = rectangle.Id,
                             Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                         }});
-                        }
-                        else
-                        {
-                            Page.Columns.Add(new List<InOutRect>{new InOutRect
+                }
+                else
+                {
+                    Page.Columns.Add(new List<InOutRect>{new InOutRect
                     {
                         Id = rectangle.Id,
                         Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = rectangle.Rectangle.Height }
                     }});
-                        }
-                    }
-
-                    if (RemainingHeight != 0)
-                    {
-                        var NewSetting = Page.Columns.Count > 1 ? new PageSetting
-                        {
-                            Height = int.MaxValue,
-                            Padding = setting.Padding,
-                            Spacing = setting.Spacing,
-                            Width = setting.Width,
-                            PreviousSplitHeight = setting.PreviousSplitHeight,
-                            MinRectangleHeight = setting.MinRectangleHeight
-                        } : setting;
-
-                        var NextPages = CalculatePages(Pages.Last(), new InOutRect
-                        {
-                            Id = rectangle.Id,
-                            Rectangle = new Rectangle
-                            {
-                                Width = rectangle.Rectangle.Width,
-                                Height = RemainingHeight
-                            }
-                        }, Placement.Adjacent, NewSetting);
-
-                        if (NextPages != null && NextPages.All(x => x != null))
-                            return Pages.Take(Pages.Count - 1).Concat(NextPages).ToList();
-
-                        return null;
-                    }
-
-                    if (Pages.Count > 1 && Pages[1].Columns.Count > 1)
-                        Console.Write("bad");
-
-                    return Pages;
                 }
+            }
+
+            if (RemainingHeight != 0)
+            {
+                var NewSetting = Page.Columns.Count > 1 ? new PageSetting
+                {
+                    Height = int.MaxValue,
+                    Padding = setting.Padding,
+                    Spacing = setting.Spacing,
+                    Width = setting.Width,
+                    PreviousSplitHeight = setting.PreviousSplitHeight,
+                    MinRectangleHeight = setting.MinRectangleHeight
+                } : setting;
+
+                var NextPages = CalculatePages(Pages.Last(), new InOutRect
+                {
+                    Id = rectangle.Id,
+                    Rectangle = new Rectangle
+                    {
+                        Width = rectangle.Rectangle.Width,
+                        Height = RemainingHeight
+                    }
+                }, Placement.Adjacent, NewSetting);
+
+                if (NextPages != null && NextPages.All(x => x != null))
+                    return Pages.Take(Pages.Count - 1).Concat(NextPages).ToList();
+
+                return null;
+            }
+
+            return Pages;
+        }
 
         /// <summary>
         /// ClonePage returns a deep copy of a page.  However, references to the original rectangles remain intact.
@@ -1087,7 +1072,12 @@ namespace RectangleCompression
                 return;
             }
 
-            var Setting = new PageSetting { Width = int.Parse(args[2]), Height = int.Parse(args[3]), Spacing = int.Parse(args[4]), Padding = int.Parse(args[5]),
+            var Setting = new PageSetting
+            {
+                Width = int.Parse(args[2]),
+                Height = int.Parse(args[3]),
+                Spacing = int.Parse(args[4]),
+                Padding = int.Parse(args[5]),
                 MinRectangleHeight = args.Length == 7 ? int.Parse(args[6]) : int.Parse(args[5])
             };
             var InputPath = args[0];
