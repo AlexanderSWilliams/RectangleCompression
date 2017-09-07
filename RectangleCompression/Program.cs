@@ -193,16 +193,6 @@ namespace RectangleCompression
 
             if (RemainingHeight != 0)
             {
-                var NewSetting = Page.Columns.Count > 1 ? new PageSetting
-                {
-                    Height = int.MaxValue,
-                    Padding = setting.Padding,
-                    Spacing = setting.Spacing,
-                    Width = setting.Width,
-                    PreviousSplitHeight = setting.PreviousSplitHeight,
-                    MinRectangleHeight = setting.MinRectangleHeight
-                } : setting;
-
                 var NextPages = CalculatePages(Pages.Last(), new InOutRect
                 {
                     Id = rectangle.Id,
@@ -211,7 +201,7 @@ namespace RectangleCompression
                         Width = rectangle.Rectangle.Width,
                         Height = RemainingHeight
                     }
-                }, Placement.Adjacent, NewSetting);
+                }, Placement.Adjacent, setting);
 
                 if (NextPages != null && NextPages.All(x => x != null))
                     return Pages.Take(Pages.Count - 1).Concat(NextPages).ToList();
@@ -246,13 +236,13 @@ namespace RectangleCompression
         public static Page Compress(Page page, PageSetting setting, int numberOfColumns)
         {
             var Result = ClonePage(page);
-            var Heights = Result.Columns.Select(x => x.Last().Rectangle).Select(x => x.Y + x.Height).ToArray();
-            var AverageHeight = (Heights.Sum() + (numberOfColumns - Result.Columns.Count) * setting.Padding) * 1.0 / ((double)numberOfColumns);
 
             for (var CurrentIndex = 0; CurrentIndex < Result.Columns.Count; CurrentIndex++)
             {
                 do
                 {
+                    var Heights = Result.Columns.Select(x => x.Last().Rectangle).Select(x => x.Y + x.Height).ToArray();
+                    var AverageHeight = Heights.Sum() * 1.0 / ((double)numberOfColumns);
                     var CurrentColumn = Result.Columns[CurrentIndex];
                     var CurrentHeight = CurrentColumn.Last().Rectangle.Y + CurrentColumn.Last().Rectangle.Height; // recalculate b/c they can change
                     var CurrentDiff = Math.Abs(CurrentHeight - AverageHeight);
@@ -680,9 +670,6 @@ namespace RectangleCompression
                     }
                 };
 
-                if (Result.Columns.Any(y => y.Last().Rectangle.Y + y.Last().Rectangle.Height > setting.Height))
-                    throw new Exception();
-
                 UpdateYCoordinates(Result, setting, currentIndex + 1);
                 UpdateXCoordinates(Result, setting);
                 return IsValidPage(Result, setting) ? Result : null;
@@ -823,7 +810,7 @@ namespace RectangleCompression
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
-                    Height = TopRectangle.Rectangle.Height - BestCutHeight,
+                    Height = BestCutHeight,
                     X = BottomRectangle.Rectangle.X,
                     Y = BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + setting.Padding
                 }
@@ -835,7 +822,7 @@ namespace RectangleCompression
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
-                    Height = BestCutHeight,
+                    Height = TopRectangle.Rectangle.Height - BestCutHeight,
                     X = TopRectangle.Rectangle.X,
                     Y = TopRectangle.Rectangle.Y
                 }
