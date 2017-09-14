@@ -59,8 +59,8 @@ namespace RectangleCompression
 
             if (placement == Placement.Under)
             {
-                var LastRectangle = LastColumn?.Last().Rectangle;
-                var Y = (LastRectangle?.Height + LastRectangle?.Y + setting.Padding ?? 0);
+                var LastRectangle = LastColumn?.Last();
+                var Y = (LastRectangle?.Rectangle.Height + LastRectangle?.Rectangle.Y + rectangle.TopPadding ?? 0);
                 if ((LastColumn?[0].Rectangle.X ?? 0) + rectangle.Rectangle.Width > setting.Width)
                     return null;
 
@@ -76,6 +76,8 @@ namespace RectangleCompression
                     var UnderRectangle = new InOutRect
                     {
                         Id = rectangle.Id,
+                        TopPadding = rectangle.TopPadding,
+                        ClassType = rectangle.ClassType,
                         Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
                     };
                     if (!Page.Columns.Any())
@@ -98,7 +100,7 @@ namespace RectangleCompression
 
                     var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
                     var NextHeight = NextMaxCut - MaxCut;
-                    RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - NextHeight : 0;
+                    RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - (MaxCut - SplitHeight) - NextHeight : 0;
 
                     if (X + rectangle.Rectangle.Width > setting.Width)
                     {
@@ -106,6 +108,8 @@ namespace RectangleCompression
                         {
                             Columns = new List<List<InOutRect>> { new List<InOutRect> {new InOutRect {
                                     Id = rectangle.Id,
+                                    TopPadding = rectangle.TopPadding,
+                                    ClassType = rectangle.ClassType,
                                     Rectangle = new Rectangle { X = 0, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                                 }}}
                         });
@@ -113,6 +117,8 @@ namespace RectangleCompression
                     else
                         Page.Columns.Add(new List<InOutRect> { new InOutRect {
                             Id = rectangle.Id,
+                            TopPadding = rectangle.TopPadding,
+                            ClassType = rectangle.ClassType,
                             Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                         }});
                 }
@@ -121,6 +127,8 @@ namespace RectangleCompression
                     var UnderRectangle = new InOutRect
                     {
                         Id = rectangle.Id,
+                        TopPadding = rectangle.TopPadding,
+                        ClassType = rectangle.ClassType,
                         Rectangle = new Rectangle { X = (LastColumn?[0].Rectangle.X ?? 0), Y = Y, Width = rectangle.Rectangle.Width, Height = rectangle.Rectangle.Height }
                     };
                     if (!Page.Columns.Any())
@@ -147,6 +155,8 @@ namespace RectangleCompression
                     Page.Columns.Add(new List<InOutRect>{new InOutRect
                     {
                         Id = rectangle.Id,
+                        TopPadding = rectangle.TopPadding,
+                        ClassType = rectangle.ClassType,
                         Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = MaxCut - SplitHeight }
                     }});
 
@@ -165,19 +175,23 @@ namespace RectangleCompression
 
                     var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
                     var NextHeight = NextMaxCut - MaxCut;
-                    RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - NextHeight : 0;
+                    RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - (MaxCut - SplitHeight) - NextHeight : 0;
 
                     if (X + rectangle.Rectangle.Width > setting.Width)
                         Pages.Add(new Page
                         {
                             Columns = new List<List<InOutRect>> { new List<InOutRect> {new InOutRect {
                                 Id = rectangle.Id,
+                                TopPadding = rectangle.TopPadding,
+                                ClassType = rectangle.ClassType,
                                 Rectangle = new Rectangle { X = 0, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                             }}}
                         });
                     else
                         Page.Columns.Add(new List<InOutRect> { new InOutRect {
                             Id = rectangle.Id,
+                            TopPadding = rectangle.TopPadding,
+                            ClassType = rectangle.ClassType,
                             Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = NextHeight }
                         }});
                 }
@@ -186,6 +200,8 @@ namespace RectangleCompression
                     Page.Columns.Add(new List<InOutRect>{new InOutRect
                     {
                         Id = rectangle.Id,
+                        TopPadding = rectangle.TopPadding,
+                        ClassType = rectangle.ClassType,
                         Rectangle = new Rectangle { X = X, Y = 0, Width = rectangle.Rectangle.Width, Height = rectangle.Rectangle.Height }
                     }});
                 }
@@ -193,9 +209,11 @@ namespace RectangleCompression
 
             if (RemainingHeight != 0)
             {
-                var NextPages = CalculatePages(Pages.Last(), new InOutRect
+                var PageWithRemainingHeight = CalculatePages(Pages[0], new InOutRect
                 {
                     Id = rectangle.Id,
+                    TopPadding = rectangle.TopPadding,
+                    ClassType = rectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = rectangle.Rectangle.Width,
@@ -203,10 +221,18 @@ namespace RectangleCompression
                     }
                 }, Placement.Adjacent, setting);
 
-                if (NextPages != null && NextPages.All(x => x != null))
-                    return Pages.Take(Pages.Count - 1).Concat(NextPages).ToList();
-
-                return null;
+                if (PageWithRemainingHeight != null)
+                    return PageWithRemainingHeight;
+                else
+                {
+                    var LastInOutRect = Pages[0].Columns.Last().Last();
+                    return new List<Page> { Pages[0], new Page { Columns = new List<List<InOutRect>> { new List<InOutRect> { new InOutRect {
+                        Id = LastInOutRect.Id,
+                        TopPadding = LastInOutRect.TopPadding,
+                        ClassType = LastInOutRect.ClassType,
+                        Rectangle = new Rectangle { Height = RemainingHeight, Width = LastInOutRect.Rectangle.Width, X = 0, Y = 0 },
+                    } } } } };
+                }
             }
 
             return Pages;
@@ -352,6 +378,8 @@ namespace RectangleCompression
                 NextColumn[0] = new InOutRect
                 {
                     Id = TopRectangle.Id,
+                    TopPadding = TopRectangle.TopPadding,
+                    ClassType = TopRectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = TopRectangle.Rectangle.Width,
@@ -372,6 +400,8 @@ namespace RectangleCompression
             NextColumn.Insert(0, new InOutRect
             {
                 Id = BottomRectangle.Id,
+                TopPadding = BottomRectangle.TopPadding,
+                ClassType = BottomRectangle.ClassType,
                 Rectangle = new Rectangle
                 {
                     Width = BottomRectangle.Rectangle.Width,
@@ -408,12 +438,14 @@ namespace RectangleCompression
             var WasSplit = BottomRectangle.Id == TopRectangle.Id;
             if (WasSplit)
             {
-                if (BottomRectangle.Rectangle.Height + TopRectangle.Rectangle.Height > setting.Height)
+                if (BottomRectangle.Rectangle.Height + TopRectangle.Rectangle.Height + BottomRectangle.Rectangle.Y > setting.Height)
                     return null;
 
                 CurrentColumn[CurrentColumn.Count - 1] = new InOutRect
                 {
                     Id = BottomRectangle.Id,
+                    TopPadding = BottomRectangle.TopPadding,
+                    ClassType = BottomRectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = BottomRectangle.Rectangle.Width,
@@ -432,12 +464,14 @@ namespace RectangleCompression
             CurrentColumn.Add(new InOutRect
             {
                 Id = TopRectangle.Id,
+                TopPadding = TopRectangle.TopPadding,
+                ClassType = TopRectangle.ClassType,
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
                     Height = TopRectangle.Rectangle.Height,
                     X = BottomRectangle.Rectangle.X,
-                    Y = BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + setting.Padding
+                    Y = BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + TopRectangle.TopPadding
                 }
             });
 
@@ -614,7 +648,7 @@ namespace RectangleCompression
         /// <param name="setting">The width, height, spacing, and padding of the page.</param>
         /// <param name="currentIndex">The index of the column containing the top rectangle that will be moved.</param>
         /// <returns></returns>
-        public static Page SplitBottomRectangle(Page page, PageSetting setting, int currentIndex, double desiredHeight)
+        public static Page SplitBottomRectangle(Page page, PageSetting setting, int currentIndex, double desiredHeight, bool ignoreNextHeight = true)
         {
             var Result = ClonePage(page);
             var CurrentColumn = Result.Columns[currentIndex];
@@ -626,6 +660,9 @@ namespace RectangleCompression
             var TopRectangle = NextColumn.Any() ? NextColumn[0] : null;
 
             var Cuts = BoxCutFromId(BottomRectangle.Id).Cuts;
+            if (!Cuts.Any())
+                return null;
+
             var CurrentHeight = BottomRectangle.Rectangle.Height + BottomRectangle.Rectangle.Y;
             var CurrentDiff = Math.Abs(desiredHeight - CurrentHeight);
             var SplitHeight = PreviousSplitHeight(Result, BottomRectangle.Id, currentIndex);
@@ -638,7 +675,7 @@ namespace RectangleCompression
                     Cut = x,
                     Height1 = x - SplitHeight,
                     Height2 = BottomRectangle.Rectangle.Height + TopRectangle.Rectangle.Height - (x - SplitHeight)
-                }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && x.Height1 <= setting.Height && x.Height2 <= setting.Height)
+                }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && BottomRectangle.Rectangle.Y + x.Height1 <= setting.Height && (ignoreNextHeight || x.Height2 <= setting.Height))
                 .Select(x => x.Cut)
                 .MinBy(x => Math.Abs(desiredHeight - (BottomRectangle.Rectangle.Y + x - SplitHeight)));
                 if (BestSplitCut == null || BestSplitCut.Key > CurrentDiff)
@@ -649,6 +686,8 @@ namespace RectangleCompression
                 CurrentColumn[CurrentColumn.Count - 1] = new InOutRect
                 {
                     Id = BottomRectangle.Id,
+                    TopPadding = BottomRectangle.TopPadding,
+                    ClassType = BottomRectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = BottomRectangle.Rectangle.Width,
@@ -661,6 +700,8 @@ namespace RectangleCompression
                 NextColumn[0] = new InOutRect
                 {
                     Id = TopRectangle.Id,
+                    TopPadding = TopRectangle.TopPadding,
+                    ClassType = TopRectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = TopRectangle.Rectangle.Width,
@@ -670,9 +711,12 @@ namespace RectangleCompression
                     }
                 };
 
+                //if (Result.Columns.Any(y => y.Last().Rectangle.Y + y.Last().Rectangle.Height > setting.Height))
+                //    throw new Exception();
+
                 UpdateYCoordinates(Result, setting, currentIndex + 1);
                 UpdateXCoordinates(Result, setting);
-                return IsValidPage(Result, setting) ? Result : null;
+                return IsValidPage(Result, setting) ? Result : (ignoreNextHeight ? SplitBottomRectangle(page, setting, currentIndex, desiredHeight, false) : null);
             }
 
             var BestCut = Cuts.Select(x => new
@@ -680,7 +724,7 @@ namespace RectangleCompression
                 Cut = x,
                 Height1 = x - SplitHeight,
                 Height2 = BottomRectangle.Rectangle.Height - (x - SplitHeight)
-            }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && x.Height1 <= setting.Height && x.Height2 <= setting.Height)
+            }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && BottomRectangle.Rectangle.Y + x.Height1 <= setting.Height && (ignoreNextHeight || x.Height2 <= setting.Height))
              .Select(x => x.Cut)
              .MinBy(x => Math.Abs(desiredHeight - (BottomRectangle.Rectangle.Y + x - SplitHeight)));
 
@@ -693,6 +737,8 @@ namespace RectangleCompression
             NextColumn.Insert(0, new InOutRect
             {
                 Id = BottomRectangle.Id,
+                TopPadding = BottomRectangle.TopPadding,
+                ClassType = BottomRectangle.ClassType,
                 Rectangle = new Rectangle
                 {
                     Width = BottomRectangle.Rectangle.Width,
@@ -705,6 +751,8 @@ namespace RectangleCompression
             CurrentColumn[CurrentColumn.Count - 1] = new InOutRect
             {
                 Id = BottomRectangle.Id,
+                TopPadding = BottomRectangle.TopPadding,
+                ClassType = BottomRectangle.ClassType,
                 Rectangle = new Rectangle
                 {
                     Width = BottomRectangle.Rectangle.Width,
@@ -716,7 +764,7 @@ namespace RectangleCompression
 
             UpdateYCoordinates(Result, setting, currentIndex + 1);
             UpdateXCoordinates(Result, setting);
-            return IsValidPage(Result, setting) ? Result : null;
+            return IsValidPage(Result, setting) ? Result : (ignoreNextHeight ? SplitBottomRectangle(page, setting, currentIndex, desiredHeight, false) : null);
         }
 
         /// <summary>
@@ -752,7 +800,7 @@ namespace RectangleCompression
                     Cut = x,
                     Height1 = x - SplitHeight,
                     Height2 = BottomRectangle.Rectangle.Height + TopRectangle.Rectangle.Height - (x - SplitHeight)
-                }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && x.Height1 <= setting.Height && x.Height2 <= setting.Height)
+                }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && BottomRectangle.Rectangle.Y + x.Height1 <= setting.Height && x.Height2 <= setting.Height)
                 .Select(x => x.Cut)
                 .MinBy(x => Math.Abs(desiredHeight - (BottomRectangle.Rectangle.Y + x - SplitHeight)));
 
@@ -764,6 +812,8 @@ namespace RectangleCompression
                 CurrentColumn[CurrentColumn.Count - 1] = new InOutRect
                 {
                     Id = BottomRectangle.Id,
+                    TopPadding = BottomRectangle.TopPadding,
+                    ClassType = BottomRectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = BottomRectangle.Rectangle.Width,
@@ -776,6 +826,8 @@ namespace RectangleCompression
                 NextColumn[0] = new InOutRect
                 {
                     Id = TopRectangle.Id,
+                    TopPadding = TopRectangle.TopPadding,
+                    ClassType = TopRectangle.ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = TopRectangle.Rectangle.Width,
@@ -795,9 +847,10 @@ namespace RectangleCompression
                 Cut = x,
                 Height1 = TopRectangle.Rectangle.Height - (x - SplitHeight),
                 Height2 = x - SplitHeight
-            }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && x.Height1 <= setting.Height && x.Height2 <= setting.Height)
+            }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && x.Height1 <= setting.Height &&
+                BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + TopRectangle.TopPadding + x.Height2 <= setting.Height)
             .Select(x => x.Cut)
-            .MinBy(x => Math.Abs(desiredHeight - (BottomRectangle.Rectangle.Y + x - SplitHeight + setting.Padding)));
+            .MinBy(x => Math.Abs(desiredHeight - (BottomRectangle.Rectangle.Y + x - SplitHeight + TopRectangle.TopPadding)));
 
             if (BestCut == null || BestCut.Key > CurrentDiff)
                 return null;
@@ -807,18 +860,22 @@ namespace RectangleCompression
             CurrentColumn.Add(new InOutRect
             {
                 Id = TopRectangle.Id,
+                TopPadding = TopRectangle.TopPadding,
+                ClassType = TopRectangle.ClassType,
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
                     Height = BestCutHeight,
                     X = BottomRectangle.Rectangle.X,
-                    Y = BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + setting.Padding
+                    Y = BottomRectangle.Rectangle.Y + BottomRectangle.Rectangle.Height + TopRectangle.TopPadding
                 }
             });
 
             NextColumn[0] = new InOutRect
             {
                 Id = TopRectangle.Id,
+                TopPadding = TopRectangle.TopPadding,
+                ClassType = TopRectangle.ClassType,
                 Rectangle = new Rectangle
                 {
                     Width = TopRectangle.Rectangle.Width,
@@ -846,7 +903,7 @@ namespace RectangleCompression
         {
             var InitialRectangle = rectangles[0];
             if (!IsVerticallyValid(InitialRectangle, setting.Height))
-                throw new Exception("There is a rectangle that does not vertically fit the dimensions provided.");
+                return null;
             return TreeOfValidPlacements(new PlacementTree(), rectangles, setting, Placement.Under, rectangles[0], 1);
         }
 
@@ -954,6 +1011,8 @@ namespace RectangleCompression
                 CurrentColumn[SplitIndex] = new InOutRect
                 {
                     Id = CurrentColumn[SplitIndex].Id,
+                    TopPadding = CurrentColumn[SplitIndex].TopPadding,
+                    ClassType = CurrentColumn[SplitIndex].ClassType,
                     Rectangle = new Rectangle
                     {
                         Width = CurrentColumn[SplitIndex].Rectangle.Width,
@@ -975,6 +1034,8 @@ namespace RectangleCompression
                     CurrentColumn[i] = new InOutRect
                     {
                         Id = CurrentRectangle.Id,
+                        TopPadding = CurrentRectangle.TopPadding,
+                        ClassType = CurrentRectangle.ClassType,
                         Rectangle = new Rectangle
                         {
                             Width = CurrentRectangle.Rectangle.Width,
@@ -983,7 +1044,7 @@ namespace RectangleCompression
                             Y = Y,
                         }
                     };
-                    Y = Y + CurrentRectangle.Rectangle.Height + setting.Padding;
+                    Y = Y + CurrentRectangle.Rectangle.Height + (i < CurrentColumn.Count - 1 ? CurrentColumn[i + 1].TopPadding : 0);
                 }
                 else
                 {
@@ -998,7 +1059,7 @@ namespace RectangleCompression
                         Cut = x,
                         Height1 = x - SplitHeight,
                         Height2 = CurrentRectangle.Rectangle.Height - (x - SplitHeight)
-                    }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && x.Height1 <= setting.Height && x.Height2 <= setting.Height)
+                    }).Where(x => x.Height1 >= setting.MinRectangleHeight && x.Height2 >= setting.MinRectangleHeight && Y + x.Height1 <= setting.Height && x.Height2 <= setting.Height)
                     .Select(x => x.Cut);
 
 
@@ -1015,6 +1076,8 @@ namespace RectangleCompression
                         CurrentColumn[i] = new InOutRect
                         {
                             Id = CurrentRectangle.Id,
+                            TopPadding = CurrentRectangle.TopPadding,
+                            ClassType = CurrentRectangle.ClassType,
                             Rectangle = new Rectangle
                             {
                                 Width = CurrentRectangle.Rectangle.Width,
@@ -1029,6 +1092,8 @@ namespace RectangleCompression
                             new InOutRect
                             {
                                 Id = CurrentRectangle.Id,
+                                TopPadding = CurrentRectangle.TopPadding,
+                                ClassType = CurrentRectangle.ClassType,
                                 Rectangle = new Rectangle
                                 {
                                     Width = CurrentRectangle.Rectangle.Width,
@@ -1053,9 +1118,9 @@ namespace RectangleCompression
 
         private static void Main(string[] args)
         {
-            if (args.Length != 6 && args.Length != 7)
+            if (args.Length != 5 && args.Length != 6)
             {
-                Console.WriteLine("RectangleCompression \"path to input file\" \"path to output file\" width height spacing padding (minrectangleheight optional)\r\nE.g. RectangleCompression \"c:\\input.txt\" \"c:\\output.txt\" 700 1000 10 5");
+                Console.WriteLine("RectangleCompression \"path to input file\" \"path to output file\" width height spacing (minrectangleheight optional)\r\nE.g. RectangleCompression \"c:\\input.txt\" \"c:\\output.txt\" 700 1000 10 5");
                 return;
             }
 
@@ -1064,7 +1129,6 @@ namespace RectangleCompression
                 Width = int.Parse(args[2]),
                 Height = int.Parse(args[3]),
                 Spacing = int.Parse(args[4]),
-                Padding = int.Parse(args[5]),
                 MinRectangleHeight = args.Length == 7 ? int.Parse(args[6]) : int.Parse(args[5])
             };
             var InputPath = args[0];
@@ -1097,7 +1161,6 @@ namespace RectangleCompression
                 var NewSetting = SplitHeight != 0 ? new PageSetting
                 {
                     Height = Setting.Height,
-                    Padding = Setting.Padding,
                     Spacing = Setting.Spacing,
                     Width = Setting.Width,
                     PreviousSplitHeight = SplitHeight,
@@ -1114,6 +1177,10 @@ namespace RectangleCompression
         {
             public int Id { get; set; }
 
+            public int TopPadding { get; set; }
+
+            public byte ClassType { get; set; }
+
             public Rectangle Rectangle { get; set; }
         }
 
@@ -1125,8 +1192,6 @@ namespace RectangleCompression
         public class PageSetting
         {
             public int Height { get; set; }
-
-            public int Padding { get; set; }
 
             public int PreviousSplitHeight { get; set; }
 
