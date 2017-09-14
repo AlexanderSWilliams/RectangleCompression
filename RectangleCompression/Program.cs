@@ -1129,7 +1129,7 @@ namespace RectangleCompression
                 Width = int.Parse(args[2]),
                 Height = int.Parse(args[3]),
                 Spacing = int.Parse(args[4]),
-                MinRectangleHeight = args.Length == 7 ? int.Parse(args[6]) : int.Parse(args[5])
+                MinRectangleHeight = args.Length == 6 ? int.Parse(args[5]) : int.Parse(args[4])
             };
             var InputPath = args[0];
             var OutputPath = args[1];
