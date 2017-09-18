@@ -92,13 +92,10 @@ namespace RectangleCompression
                         Cut = x,
                         NextHeight = HasRemainingHeight ? x - MaxCut : rectangle.Rectangle.Height + SplitHeight - MaxCut,
                         RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height + SplitHeight - x : 0
-                    }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height && x.RemainingHeight <= setting.Height)
+                    }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height)
                     .Select(x => x.Cut);
 
-                    if (HasRemainingHeight && !NextPageCuts.Any())
-                        return null;
-
-                    var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
+                    var NextMaxCut = HasRemainingHeight ? (!NextPageCuts.Any() ? MaxCut : NextPageCuts.Max()) : rectangle.Rectangle.Height + SplitHeight;
                     var NextHeight = NextMaxCut - MaxCut;
                     RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - (MaxCut - SplitHeight) - NextHeight : 0;
 
@@ -167,13 +164,10 @@ namespace RectangleCompression
                         Cut = x,
                         NextHeight = HasRemainingHeight ? x - MaxCut : rectangle.Rectangle.Height + SplitHeight - MaxCut,
                         RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height + SplitHeight - x : 0
-                    }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height && x.RemainingHeight <= setting.Height)
+                    }).Where(x => x.NextHeight >= setting.MinRectangleHeight && x.RemainingHeight >= setting.MinRectangleHeight && x.NextHeight <= setting.Height)
                     .Select(x => x.Cut);
 
-                    if (HasRemainingHeight && !NextPageCuts.Any())
-                        return null;
-
-                    var NextMaxCut = HasRemainingHeight ? NextPageCuts.Max() : rectangle.Rectangle.Height + SplitHeight;
+                    var NextMaxCut = HasRemainingHeight ? (!NextPageCuts.Any() ? MaxCut : NextPageCuts.Max()) : rectangle.Rectangle.Height + SplitHeight;
                     var NextHeight = NextMaxCut - MaxCut;
                     RemainingHeight = HasRemainingHeight ? rectangle.Rectangle.Height - (MaxCut - SplitHeight) - NextHeight : 0;
 
@@ -1152,7 +1146,7 @@ namespace RectangleCompression
             {
                 var NewRectangles = Pages.Count > 1 ? Pages.Skip(1).Select(x => x.Columns)
                     .SelectMany(x => x).SelectMany(x => x).ToList() : new List<InOutRect>();
-                NewRectangles.AddRange(RectangeList.SubList(PageIndex));
+                NewRectangles.AddRange((RectangeList.SkipWhile(x => x.Id != PageIndex).Skip(1));
 
                 var LastRectangle = Pages[0].Columns.Last().Last();
                 PageIndex = LastRectangle.Id;
